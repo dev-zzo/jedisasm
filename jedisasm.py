@@ -59,6 +59,8 @@ def read_jedec(path):
     with open(path, "r") as fp:
         return load_jedec(fp)
 
+# Helper stuff
+
 class ANDList(list):
     pass
 class ORList(list):
@@ -79,13 +81,7 @@ def is_term_nonzero(fusemap, indices):
 def collect_and_terms(fusemap, indices):
     return ANDList([i for i in range(indices[1] - indices[0]) if fusemap[indices[0]+i] == 0])
 
-def append_pair(name_list, name, inv):
-    if inv:
-        name_list.append(inverted(name))
-        name_list.append(name)
-    else:
-        name_list.append(name)
-        name_list.append(inverted(name))
+# The meat -- SPLD declarations and all the smarts
 
 class PALBase:
     def __init__(self, fusemap, pinmap):
@@ -112,10 +108,10 @@ class PALBase:
                 names.append(name)
                 names.append(inverted(name))
         return names
-        
+
     def get_macrocell_cmt(self, config):
         return []
-        
+
 class P16L8(PALBase):
     """
     PAL16L8
@@ -182,7 +178,7 @@ class P16L8(PALBase):
         if d_terms:
             eqns.append((name, d_terms))
         return eqns
-        
+
 class G16V8xx(PALBase):
     """
     GAL16V8, common stuff
@@ -248,7 +244,7 @@ class G16V8MA(G16V8xx):
         else:
             return False
         return is_term_nonzero(self.fusemap, config.oe_fuses) and not self.fusemap[config.xor_fuse]
-        
+
     def get_macrocell_eqns(self, config):
         eqns = []
         name = self.get_pin_name(config.pin)
@@ -265,7 +261,7 @@ class G16V8MA(G16V8xx):
         if d_terms:
             eqns.append((name, d_terms))
         return eqns
-        
+
 class G16V8MS(G16V8xx):
     """
     GAL16V8 in Registered configuration
@@ -301,7 +297,7 @@ class G16V8MS(G16V8xx):
         else:
             return False
         return not self.fusemap[config.ac1_fuse] and not self.fusemap[config.xor_fuse]
-        
+
     def get_macrocell_eqns(self, config):
         eqns = []
         name = self.get_pin_name(config.pin)
@@ -315,7 +311,7 @@ class G16V8MS(G16V8xx):
                 terms = collect_and_terms(self.fusemap, term_fuses)
                 if terms:
                     d_terms.append(terms)
-                    
+
         if self.fusemap[config.ac1_fuse]:
             if oe_terms:
                 eqns.append((name+".oe", oe_terms))
@@ -327,7 +323,7 @@ class G16V8MS(G16V8xx):
             if d_terms:
                 eqns.append((name+".d", d_terms))
         return eqns
-        
+
 class G16V8AS(G16V8xx):
     """
     GAL16V8 in Simple configuration
@@ -363,7 +359,7 @@ class G16V8AS(G16V8xx):
         else:
             return False
         return not self.fusemap[config.ac1_fuse] and not self.fusemap[config.xor_fuse]
-        
+
     def get_macrocell_eqns(self, config):
         eqns = []
         if not self.fusemap[config.ac1_fuse]:
@@ -392,6 +388,7 @@ def G16V8(fusemap, pinmap):
     else:
         raise TypeError("incorrect device chosen")
 
+# Output formatters
 
 class CUPLPrinter:
     def stringize_and(self, items):
@@ -417,6 +414,7 @@ class CUPLPrinter:
     def print_comment(self, text):
         print("/* "+text+" */")
 
+# Main and friends
 
 def generate_printout(device, printer):
     for pin in range(1, device.pin_count+1):
@@ -475,4 +473,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

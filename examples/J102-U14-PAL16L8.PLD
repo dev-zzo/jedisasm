@@ -1,0 +1,42 @@
+Pin  1 = PIN01;
+Pin  2 = !AT1;
+Pin  3 = !AT2;
+Pin  4 = !AT3;
+Pin  5 = !AT4;
+Pin  6 = !AT5;
+Pin  7 = !AT6;
+Pin  8 = FC2;
+Pin  9 = FC1;
+Pin 10 = gnd;
+Pin 11 = FC0;
+Pin 12 = PIN12;
+Pin 13 = !IPL0;
+Pin 14 = !IPL1;
+Pin 15 = !IPL2;
+Pin 16 = !INTA;
+Pin 17 = !AT0;
+Pin 18 = !AS;
+Pin 19 = PIN19;
+Pin 20 = vcc;
+
+INTA =
+    AS & FC2 & FC1 & FC0;
+
+IPL2 =
+    AT0
+  # AT1
+  # AT2
+  # AT3;
+
+IPL1 =
+    AT0
+  # AT1
+  # !AT2 & !AT3 & AT4
+  # !AT2 & !AT3 & AT5;
+
+IPL0 =
+    AT0
+  # !AT1 & AT2
+  # !AT1 & !AT3 & AT4
+  # !AT1 & !AT3 & !AT5 & AT6;
+

@@ -112,27 +112,113 @@ class PALBase:
     def get_macrocell_cmt(self, config):
         return []
 
-class P16L8(PALBase):
-    """
-    PAL16L8
-    """
+class P16xx(PALBase):
     pin_count = 20
 
     class OLMC:
-        def __init__(self, pin, oe_fuses, terms_fuses):
+        def __init__(self, pin, oe_fuses, terms_fuses, registered):
             self.pin = pin
             self.oe_fuses = oe_fuses
             self.terms_fuses = terms_fuses
+            self.registered = registered
 
+    def is_out_inverted(self, pin):
+        for config in self.macrocell_config:
+            if config.pin == pin:
+                break
+        else:
+            return False
+        return config.registered or is_term_nonzero(self.fusemap, config.oe_fuses)
+
+    def get_macrocell_eqns(self, config):
+        if config.registered:
+            return self.get_registered_macrocell_eqns(config)
+        else:
+            return self.get_combinatorial_macrocell_eqns(config)
+
+    def get_combinatorial_macrocell_eqns(self, config):
+        eqns = []
+        name = self.get_pin_name(config.pin)
+        if config.oe_fuses and is_term_nonzero(self.fusemap, config.oe_fuses):
+            oe_terms = collect_and_terms(self.fusemap, config.oe_fuses)
+            if oe_terms:
+                eqns.append((name+".oe", oe_terms))
+        d_terms = ORList()
+        for term_fuses in config.terms_fuses:
+            if is_term_nonzero(self.fusemap, term_fuses):
+                terms = collect_and_terms(self.fusemap, term_fuses)
+                if terms:
+                    d_terms.append(terms)
+        if d_terms:
+            eqns.append((name, d_terms))
+        return eqns
+
+    def get_registered_macrocell_eqns(self, config):
+        eqns = []
+        name = self.get_pin_name(config.pin)
+        d_terms = ORList()
+        if config.oe_fuses and is_term_nonzero(self.fusemap, config.oe_fuses):
+            terms = collect_and_terms(self.fusemap, config.oe_fuses)
+            if terms:
+                d_terms.append(terms)
+        for term_fuses in config.terms_fuses:
+            if is_term_nonzero(self.fusemap, term_fuses):
+                terms = collect_and_terms(self.fusemap, term_fuses)
+                if terms:
+                    d_terms.append(terms)
+        if d_terms:
+            eqns.append((name+".d", d_terms))
+        return eqns
+
+class P12L6(P16xx):
+    """
+    PAL12L6
+    """
+    OLMC = P16xx.OLMC
     macrocell_config = [
-        OLMC(19, (   0,   32), [(s, s+32) for s in range(  32,  256, 32)]),
-        OLMC(18, ( 256,  288), [(s, s+32) for s in range( 288,  512, 32)]),
-        OLMC(17, ( 512,  544), [(s, s+32) for s in range( 544,  768, 32)]),
-        OLMC(16, ( 768,  800), [(s, s+32) for s in range( 800, 1024, 32)]),
-        OLMC(15, (1024, 1056), [(s, s+32) for s in range(1056, 1280, 32)]),
-        OLMC(14, (1280, 1312), [(s, s+32) for s in range(1312, 1536, 32)]),
-        OLMC(13, (1536, 1568), [(s, s+32) for s in range(1568, 1792, 32)]),
-        OLMC(12, (1792, 1824), [(s, s+32) for s in range(1824, 2048, 32)]),
+        OLMC(18, None, [(s, s+24) for s in range(   0,   96, 24)], False),
+        OLMC(17, None, [(s, s+24) for s in range(  96,  144, 24)], False),
+        OLMC(16, None, [(s, s+24) for s in range( 144,  192, 24)], False),
+        OLMC(15, None, [(s, s+24) for s in range( 192,  240, 24)], False),
+        OLMC(14, None, [(s, s+24) for s in range( 240,  288, 24)], False),
+        OLMC(13, None, [(s, s+24) for s in range( 288,  384, 24)], False),
+    ]
+
+    def get_input_map(self):
+        return [
+            ( 2, False),
+            ( 1, False),
+            ( 3, False),
+            (19, False),
+            ( 4, False),
+            ( 5, False),
+            ( 6, False),
+            ( 7, False),
+            ( 8, False),
+            (12, False),
+            ( 9, False),
+            (11, False)]
+
+    def is_out_inverted(self, pin):
+        for config in self.macrocell_config:
+            if config.pin == pin:
+                return True
+        return False
+
+class P16L8(P16xx):
+    """
+    PAL16L8
+    """
+    OLMC = P16xx.OLMC
+    macrocell_config = [
+        OLMC(19, (   0,   32), [(s, s+32) for s in range(  32,  256, 32)], False),
+        OLMC(18, ( 256,  288), [(s, s+32) for s in range( 288,  512, 32)], False),
+        OLMC(17, ( 512,  544), [(s, s+32) for s in range( 544,  768, 32)], False),
+        OLMC(16, ( 768,  800), [(s, s+32) for s in range( 800, 1024, 32)], False),
+        OLMC(15, (1024, 1056), [(s, s+32) for s in range(1056, 1280, 32)], False),
+        OLMC(14, (1280, 1312), [(s, s+32) for s in range(1312, 1536, 32)], False),
+        OLMC(13, (1536, 1568), [(s, s+32) for s in range(1568, 1792, 32)], False),
+        OLMC(12, (1792, 1824), [(s, s+32) for s in range(1824, 2048, 32)], False),
     ]
 
     def get_input_map(self):
@@ -154,30 +240,110 @@ class P16L8(PALBase):
             ( 9, False),
             (11, False)]
 
-    def is_out_inverted(self, pin):
-        for config in self.macrocell_config:
-            if config.pin == pin:
-                break
-        else:
-            return False
-        return is_term_nonzero(self.fusemap, config.oe_fuses)
+class P16R4(P16xx):
+    """
+    PAL16R4
+    """
+    OLMC = P16xx.OLMC
+    macrocell_config = [
+        OLMC(19, (   0,   32), [(s, s+32) for s in range(  32,  256, 32)], False),
+        OLMC(18, ( 256,  288), [(s, s+32) for s in range( 288,  512, 32)], False),
+        OLMC(17, ( 512,  544), [(s, s+32) for s in range( 544,  768, 32)], True),
+        OLMC(16, ( 768,  800), [(s, s+32) for s in range( 800, 1024, 32)], True),
+        OLMC(15, (1024, 1056), [(s, s+32) for s in range(1056, 1280, 32)], True),
+        OLMC(14, (1280, 1312), [(s, s+32) for s in range(1312, 1536, 32)], True),
+        OLMC(13, (1536, 1568), [(s, s+32) for s in range(1568, 1792, 32)], False),
+        OLMC(12, (1792, 1824), [(s, s+32) for s in range(1824, 2048, 32)], False),
+    ]
 
-    def get_macrocell_eqns(self, config):
-        eqns = []
-        name = self.get_pin_name(config.pin)
-        if is_term_nonzero(self.fusemap, config.oe_fuses):
-            oe_terms = collect_and_terms(self.fusemap, config.oe_fuses)
-            if oe_terms:
-                eqns.append((name+".oe", oe_terms))
-        d_terms = ORList()
-        for term_fuses in config.terms_fuses:
-            if is_term_nonzero(self.fusemap, term_fuses):
-                terms = collect_and_terms(self.fusemap, term_fuses)
-                if terms:
-                    d_terms.append(terms)
-        if d_terms:
-            eqns.append((name, d_terms))
-        return eqns
+    def get_input_map(self):
+        return [
+            ( 2, False),
+            (19, self.is_out_inverted(19)),
+            ( 3, False),
+            (18, self.is_out_inverted(18)),
+            ( 4, False),
+            (17, self.is_out_inverted(17)),
+            ( 5, False),
+            (16, self.is_out_inverted(16)),
+            ( 6, False),
+            (15, self.is_out_inverted(15)),
+            ( 7, False),
+            (14, self.is_out_inverted(14)),
+            ( 8, False),
+            (13, self.is_out_inverted(13)),
+            ( 9, False),
+            (12, self.is_out_inverted(12))]
+
+class P16R6(P16xx):
+    """
+    PAL16R6
+    """
+    OLMC = P16xx.OLMC
+    macrocell_config = [
+        OLMC(19, (   0,   32), [(s, s+32) for s in range(  32,  256, 32)], False),
+        OLMC(18, ( 256,  288), [(s, s+32) for s in range( 288,  512, 32)], True),
+        OLMC(17, ( 512,  544), [(s, s+32) for s in range( 544,  768, 32)], True),
+        OLMC(16, ( 768,  800), [(s, s+32) for s in range( 800, 1024, 32)], True),
+        OLMC(15, (1024, 1056), [(s, s+32) for s in range(1056, 1280, 32)], True),
+        OLMC(14, (1280, 1312), [(s, s+32) for s in range(1312, 1536, 32)], True),
+        OLMC(13, (1536, 1568), [(s, s+32) for s in range(1568, 1792, 32)], True),
+        OLMC(12, (1792, 1824), [(s, s+32) for s in range(1824, 2048, 32)], False),
+    ]
+
+    def get_input_map(self):
+        return [
+            ( 2, False),
+            (19, self.is_out_inverted(19)),
+            ( 3, False),
+            (18, self.is_out_inverted(18)),
+            ( 4, False),
+            (17, self.is_out_inverted(17)),
+            ( 5, False),
+            (16, self.is_out_inverted(16)),
+            ( 6, False),
+            (15, self.is_out_inverted(15)),
+            ( 7, False),
+            (14, self.is_out_inverted(14)),
+            ( 8, False),
+            (13, self.is_out_inverted(13)),
+            ( 9, False),
+            (12, self.is_out_inverted(12))]
+
+class P16R8(P16xx):
+    """
+    PAL16R8
+    """
+    OLMC = P16xx.OLMC
+    macrocell_config = [
+        OLMC(19, (   0,   32), [(s, s+32) for s in range(  32,  256, 32)], True),
+        OLMC(18, ( 256,  288), [(s, s+32) for s in range( 288,  512, 32)], True),
+        OLMC(17, ( 512,  544), [(s, s+32) for s in range( 544,  768, 32)], True),
+        OLMC(16, ( 768,  800), [(s, s+32) for s in range( 800, 1024, 32)], True),
+        OLMC(15, (1024, 1056), [(s, s+32) for s in range(1056, 1280, 32)], True),
+        OLMC(14, (1280, 1312), [(s, s+32) for s in range(1312, 1536, 32)], True),
+        OLMC(13, (1536, 1568), [(s, s+32) for s in range(1568, 1792, 32)], True),
+        OLMC(12, (1792, 1824), [(s, s+32) for s in range(1824, 2048, 32)], True),
+    ]
+
+    def get_input_map(self):
+        return [
+            ( 2, False),
+            (19, self.is_out_inverted(19)),
+            ( 3, False),
+            (18, self.is_out_inverted(18)),
+            ( 4, False),
+            (17, self.is_out_inverted(17)),
+            ( 5, False),
+            (16, self.is_out_inverted(16)),
+            ( 6, False),
+            (15, self.is_out_inverted(15)),
+            ( 7, False),
+            (14, self.is_out_inverted(14)),
+            ( 8, False),
+            (13, self.is_out_inverted(13)),
+            ( 9, False),
+            (12, self.is_out_inverted(12))]
 
 class G16V8xx(PALBase):
     """
@@ -454,6 +620,10 @@ device_type_map = {
     "G16V8MA": G16V8MA,
     "G16V8MS": G16V8MS,
     "PALCE16V8": G16V8,
+    "P12L6": P12L6,
+    "P16R4": P16R4,
+    "P16R6": P16R6,
+    "P16R8": P16R8,
     "P16L8": P16L8,
     "PAL16L8": P16L8,
 }
